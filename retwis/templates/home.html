@@ -1,5 +1,17 @@
 {% extends "layout.html" %}
 {% block body %}
-<form action="{{ url_for('home') }}" method="post">
-</form>
+  <form action="{{ url_for('home') }}" method="post">
+  	<div class="form-group">
+      <input class="form-control" type="text" name="tweet" placeholder="What are you thinking?">
+    </div>
+    <button class="btn btn-default" type="submit">Post</button>
+  </form>
+  {% for post in timeline %}
+    <li class="tweet">
+      {{ post.username }} at {{ post.ts }}
+      {{ post.text }}
+    </li>
+  {% else %}
+    <h2>No posts!</h2>
+  {% endfor %}
 {% endblock %}

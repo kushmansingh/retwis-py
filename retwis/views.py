@@ -1,5 +1,6 @@
 import redis
 
+from datetime import datetime
 from flask import (g, jsonify, request, render_template,
                    session, redirect, url_for)
 
@@ -57,8 +58,31 @@ def logout():
     return redirect(url_for('login'))
 
 
-@app.route('/home', methods=['GET'])
+@app.route('/home', methods=['GET', 'POST'])
 def home():
     if not session:
         return redirect(url_for('login'))
-    return render_template('home.html')
+
+    user_id = g.db.hget('users', session['username'])
+    if request.method == 'GET':
+        return render_template('home.html', timeline=_get_timeline(user_id))
+    text = request.form['tweet']
+    post_id = str(g.db.incr('next_post_id'))
+    g.db.hmset('post:' + post_id, dict(user_id=user_id,
+                                       ts=datetime.utcnow(), text=text))
+    g.db.lpush('posts:' + user_id, post_id)
+    g.db.lpush('timeline:' + user_id, post_id)
+    g.db.ltrim('timeline:' + user_id, 0, 100)
+    return render_template('home.html', timeline=_get_timeline(user_id))
+
+
+def _get_timeline(user_id):
+    posts = g.db.lrange('timeline:' + user_id, 0, -1)
+    timeline = []
+    for post_id in posts:
+        post = g.db.hgetall('post:' + post_id)
+        timeline.append(dict(
+            username=g.db.hget('user:' + post['user_id'], 'username'),
+            ts=post['ts'],
+            text=post['text']))
+    return timeline
